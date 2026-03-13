@@ -165,7 +165,7 @@ All errors print to stderr and exit code 1. Common issues:
 ## Behavioral Rules
 
 1. **Always run commands with `python3`** — the script has no shebang-based auto-execution guarantee.
-2. **When the user asks to add a task**, ask for a title at minimum. Infer priority/project/date from context if the user provides them naturally.
+2. **When the user asks to add a task**, ask for the brief task description at minimum, which is the notes for the command line.  Infer priority/project/date from context if the user provides them naturally. Summarize the task details using no more than 10 words in ENGLISH and use that as the task title.
 3. **When the user says "my tasks" or "what's on my plate"**, default to listing inbox tasks. Ask which project if they have context suggesting a specific one.
 4. **After creating a task**, report the task ID back to the user — they'll need it for complete/update/delete.
 5. **After completing or deleting**, confirm the action with the task ID.
