@@ -3,6 +3,11 @@
 A lightweight, **pure-Python** command-line client for [TickTick](https://ticktick.com) / [Dida365](https://dida365.com).
 Zero external dependencies — only Python 3.6+ standard library.
 
+Install with:
+```bash
+npx skills add https://github.com/cshen/SKILLS --skill dida365
+```
+
 ---
 
 ## Table of Contents
