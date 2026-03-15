@@ -1,5 +1,5 @@
 ---
-name: imap-smtp-email
+name: mail139
 slug: mail139
 version: 1.0.0
 description: Read and send email via IMAP/SMTP. Check for new/unread messages, fetch content, search mailboxes, mark as read/unread, and send emails with attachments. Works with any IMAP/SMTP server including Gmail, Outlook, 163.com, vip.163.com, etc.
