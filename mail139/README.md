@@ -1,6 +1,8 @@
 # mail139
 
-A minimal Python CLI to download emails from [139.com](https://mail.139.com) via IMAP, built entirely on the Python standard library — no third-party packages required.
+A minimal Python CLI to download emails from [139.com](https://mail.139.com) via IMAP, built entirely on the Python standard library — no third-party packages required. Designed for simplicity, security, and ease of use, `mail139` allows you to fetch emails, save attachments, and export in multiple formats with just a few commands.
+Need to install Python library html2text `pip3 install html2text` or lynx `brew install lynx` for macOS, to get better text output for HTML emails, otherwise it will fall back to a basic tag stripper which may not render complex HTML well.
+
 
 ## Features
 
