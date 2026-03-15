@@ -25,6 +25,10 @@ from pathlib import Path
 import subprocess
 from html.parser import HTMLParser
 from html import unescape
+try:
+    import html2text as _html2text
+except Exception:
+    _html2text = None
 
 IMAP_HOST = "imap.139.com"
 IMAP_PORT = 993
@@ -133,6 +137,19 @@ class _HTMLToText(HTMLParser):
 
 
 def html_to_text(html_str: str) -> str:
+    # 1) Prefer html2text if available (borrowed pattern from eml-to-md)
+    if _html2text:
+        try:
+            conv = _html2text.HTML2Text()
+            conv.body_width = 0
+            conv.ignore_images = False
+            conv.ignore_links = False
+            conv.ignore_emphasis = False
+            return conv.handle(html_str).strip()
+        except Exception:
+            pass
+
+    # 2) Fallback to lynx --dump if installed
     try:
         proc = subprocess.run(
             ["lynx", "--dump", "--stdin"],
@@ -143,6 +160,7 @@ def html_to_text(html_str: str) -> str:
         )
         return proc.stdout.decode("utf-8", errors="replace").strip()
     except Exception:
+        # 3) Final fallback: lightweight internal stripper
         parser = _HTMLToText()
         parser.feed(html_str)
         parser.close()

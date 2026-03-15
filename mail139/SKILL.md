@@ -79,7 +79,7 @@ python3 {baseDir}/mail139.py -u "$MAIL139_ID" -p "$MAIL139_TOKEN" fetch [options
 
 > For `--format eml`, files are written to `--output`. If `--output` is omitted, the existing `~/Downloads` directory is used. If `~/Downloads` does not exist, the command exits with an error.
 
-> HTML bodies are converted to plain text via `lynx --dump` when available (fallback to internal stripping). No HTML tags appear in printed/JSON bodies.
+> HTML bodies are converted to plain text via `html2text` (if installed), else `lynx --dump`, else an internal stripper. No HTML tags appear in printed/JSON bodies.
 
 **Examples:**
 

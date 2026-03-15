@@ -66,7 +66,7 @@ python3 mail139.py -u you@139.com fetch [options]
 > For `--format eml`, files are written to `--output`. If `--output` is omitted, the existing `~/Downloads` directory is used. If `~/Downloads` does not exist, the command exits with an error.
 
 > [!TIP]
-> HTML emails are rendered to plain text using `lynx --dump` when available (fallback to an internal tag stripper). Printed/JSON bodies contain no HTML tags.
+> HTML emails are rendered to plain text using `html2text` if installed, otherwise `lynx --dump`, otherwise an internal tag stripper. Printed/JSON bodies contain no HTML tags.
 
 ### Examples
 
