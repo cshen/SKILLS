@@ -63,6 +63,30 @@ def decode_imap_utf7(name: str) -> str:
             i += 1
     return "".join(res)
 
+def encode_imap_utf7(name: str) -> str:
+    """Encode folder name to IMAP modified UTF-7."""
+    out = []
+    buf = []
+    def flush_buf():
+        if not buf:
+            return
+        b = "".join(buf).encode("utf-16-be")
+        b64 = base64.b64encode(b).decode("ascii").rstrip("=")
+        out.append("&" + b64.replace("/", ",") + "-")
+        buf.clear()
+    for ch in name:
+        code = ord(ch)
+        if 0x20 <= code <= 0x7E and ch != "&":
+            flush_buf()
+            out.append(ch)
+        elif ch == "&":
+            flush_buf()
+            out.append("&-")
+        else:
+            buf.append(ch)
+    flush_buf()
+    return "".join(out)
+
 class _HTMLToText(HTMLParser):
     block_tags = {
         "p", "div", "br", "li", "ul", "ol", "section", "header", "footer",
@@ -302,7 +326,8 @@ def cmd_fetch(
             sys.exit(1)
         output_dir = eml_default
 
-    status, _ = conn.select(f'"{folder}"', readonly=not mark_read)
+    encoded_folder = encode_imap_utf7(folder)
+    status, _ = conn.select(f'"{encoded_folder}"', readonly=not mark_read)
     if status != "OK":
         print(f"ERROR: cannot open folder '{folder}'", file=sys.stderr)
         sys.exit(1)
