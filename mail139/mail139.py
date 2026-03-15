@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
 """
-mail139 - Download emails from 139.com via IMAP using pure Python stdlib.
+mail139 - Download, delete, reply to, and forward emails from 139.com via IMAP/SMTP
+using pure Python stdlib.
 
 IMAP settings for 139.com:
   Server : imap.139.com
   Port   : 993
+  SSL    : yes
+
+SMTP settings for 139.com:
+  Server : smtp.139.com
+  Port   : 465
   SSL    : yes
 """
 
@@ -17,10 +23,14 @@ import email.message
 import imaplib
 import json
 import os
+import smtplib
 import ssl
 import base64
 import sys
 from datetime import datetime
+from email.mime.base import MIMEBase
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from pathlib import Path
 import subprocess
 from html.parser import HTMLParser
@@ -32,6 +42,8 @@ except Exception:
 
 IMAP_HOST = "imap.139.com"
 IMAP_PORT = 993
+SMTP_HOST = "smtp.139.com"
+SMTP_PORT = 465
 
 
 # ---------------------------------------------------------------------------
@@ -315,6 +327,26 @@ def connect(user: str, password: str) -> imaplib.IMAP4_SSL:
         return conn
 
 
+def connect_smtp(user: str, password: str) -> smtplib.SMTP_SSL:
+    """Connect and authenticate to 139.com SMTP server."""
+    ctx = _create_ssl_context(allow_legacy=True)
+    try:
+        smtp = smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=ctx)
+        smtp.login(user, password)
+        return smtp
+    except ssl.SSLError as e:
+        if not _is_handshake_failure(e):
+            raise
+        print(
+            "TLS handshake failed; retrying with legacy TLS settings for SMTP.",
+            file=sys.stderr,
+        )
+        legacy_ctx = _create_ssl_context(allow_legacy=True)
+        smtp = smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=legacy_ctx)
+        smtp.login(user, password)
+        return smtp
+
+
 # ---------------------------------------------------------------------------
 # commands
 # ---------------------------------------------------------------------------
@@ -456,6 +488,123 @@ def _save_eml(uid: str, raw: bytes, output_dir: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# helpers shared by delete / reply / forward
+# ---------------------------------------------------------------------------
+
+def _open_folder_rw(conn: imaplib.IMAP4_SSL, folder: str, readonly: bool = True) -> None:
+    encoded_folder = encode_imap_utf7(folder)
+    status, _ = conn.select(f'"{encoded_folder}"', readonly=readonly)
+    if status != "OK":
+        print(f"ERROR: cannot open folder '{folder}'", file=sys.stderr)
+        sys.exit(1)
+
+
+def _fetch_raw(conn: imaplib.IMAP4_SSL, uid: str) -> tuple[bytes, email.message.Message]:
+    """Fetch a single message by UID (folder must already be selected)."""
+    status, raw = conn.uid("fetch", uid, "(RFC822)")
+    if status != "OK" or not raw or raw[0] is None:
+        print(f"ERROR: could not fetch UID {uid}", file=sys.stderr)
+        sys.exit(1)
+    raw_bytes: bytes = raw[0][1]
+    return raw_bytes, email.message_from_bytes(raw_bytes)
+
+
+# ---------------------------------------------------------------------------
+# new commands
+# ---------------------------------------------------------------------------
+
+def cmd_delete(
+    conn: imaplib.IMAP4_SSL,
+    uid: str,
+    folder: str,
+    expunge: bool,
+) -> None:
+    _open_folder_rw(conn, folder, readonly=False)
+    status, _ = conn.uid("store", uid, "+FLAGS", r"(\Deleted)")
+    if status != "OK":
+        print(f"ERROR: could not mark UID {uid} for deletion", file=sys.stderr)
+        sys.exit(1)
+    if expunge:
+        conn.expunge()
+        print(f"Permanently deleted UID {uid} from '{folder}'.")
+    else:
+        print(f"Marked UID {uid} for deletion in '{folder}'. Pass --expunge to permanently remove it.")
+
+
+def cmd_reply(
+    conn: imaplib.IMAP4_SSL,
+    smtp: smtplib.SMTP_SSL,
+    user: str,
+    uid: str,
+    folder: str,
+    body: str,
+    reply_all: bool,
+) -> None:
+    _open_folder_rw(conn, folder, readonly=True)
+    _, orig = _fetch_raw(conn, uid)
+
+    orig_from = decode_header_value(orig.get("From", ""))
+    orig_to = decode_header_value(orig.get("To", ""))
+    orig_cc = decode_header_value(orig.get("Cc", ""))
+    orig_subject = decode_header_value(orig.get("Subject", ""))
+    orig_msg_id = orig.get("Message-ID", "")
+    orig_references = orig.get("References", "")
+
+    reply_subject = orig_subject if orig_subject.lower().startswith("re:") else f"Re: {orig_subject}"
+
+    to_addrs = [orig_from]
+    if reply_all:
+        for field in [orig_to, orig_cc]:
+            for addr in (a.strip() for a in field.split(",") if a.strip()):
+                if user not in addr and addr not in to_addrs:
+                    to_addrs.append(addr)
+
+    msg = MIMEText(body, "plain", "utf-8")
+    msg["From"] = user
+    msg["To"] = ", ".join(to_addrs)
+    msg["Subject"] = reply_subject
+    if orig_msg_id:
+        msg["In-Reply-To"] = orig_msg_id
+        msg["References"] = (f"{orig_references} {orig_msg_id}".strip()
+                             if orig_references else orig_msg_id)
+
+    smtp.sendmail(user, to_addrs, msg.as_string())
+    print(f"Reply sent to: {', '.join(to_addrs)}")
+
+
+def cmd_forward(
+    conn: imaplib.IMAP4_SSL,
+    smtp: smtplib.SMTP_SSL,
+    user: str,
+    uid: str,
+    folder: str,
+    to: str,
+    body: str,
+) -> None:
+    _open_folder_rw(conn, folder, readonly=True)
+    _, orig = _fetch_raw(conn, uid)
+
+    orig_subject = decode_header_value(orig.get("Subject", ""))
+    fwd_subject = orig_subject if orig_subject.lower().startswith("fwd:") else f"Fwd: {orig_subject}"
+
+    msg = MIMEMultipart("mixed")
+    msg["From"] = user
+    msg["To"] = to
+    msg["Subject"] = fwd_subject
+
+    preamble = (body.rstrip() + "\n\n") if body else ""
+    msg.attach(MIMEText(preamble + "---------- Forwarded message ----------", "plain", "utf-8"))
+
+    # Attach original as message/rfc822 so any email client can open it
+    attached = MIMEBase("message", "rfc822")
+    attached.set_payload([orig])
+    msg.attach(attached)
+
+    smtp.sendmail(user, [to], msg.as_string())
+    print(f"Forwarded UID {uid} to: {to}")
+
+
+# ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
 
@@ -517,6 +666,45 @@ def build_parser() -> tuple[argparse.ArgumentParser, dict[str, argparse.Argument
         help="Mark fetched emails as read (default: read-only, no side effects)",
     )
 
+    # delete
+    del_p = sub.add_parser("delete", help="Mark an email for deletion")
+    subcommands["delete"] = del_p
+    del_p.add_argument("--uid", required=True, help="UID of the email to delete")
+    del_p.add_argument("--folder", default="INBOX", help="IMAP folder containing the email")
+    del_p.add_argument(
+        "--expunge",
+        action="store_true",
+        help="Permanently remove the email immediately (default: only sets \\Deleted flag)",
+    )
+
+    # reply
+    reply_p = sub.add_parser("reply", help="Reply to an email")
+    subcommands["reply"] = reply_p
+    reply_p.add_argument("--uid", required=True, help="UID of the email to reply to")
+    reply_p.add_argument("--folder", default="INBOX", help="IMAP folder containing the email")
+    reply_p.add_argument(
+        "--body",
+        required=True,
+        help='Reply body text. Use "-" to read from stdin',
+    )
+    reply_p.add_argument(
+        "--reply-all",
+        action="store_true",
+        help="Reply to all original recipients (To + Cc), not just the sender",
+    )
+
+    # forward
+    fwd_p = sub.add_parser("forward", help="Forward an email to another address")
+    subcommands["forward"] = fwd_p
+    fwd_p.add_argument("--uid", required=True, help="UID of the email to forward")
+    fwd_p.add_argument("--to", required=True, metavar="EMAIL", help="Recipient email address")
+    fwd_p.add_argument("--folder", default="INBOX", help="IMAP folder containing the email")
+    fwd_p.add_argument(
+        "--body",
+        default="",
+        help="Optional message to prepend before the forwarded content",
+    )
+
     return p, subcommands
 
 
@@ -571,6 +759,29 @@ def main() -> None:
                 save_attachments=args.save_attachments,
                 mark_read=args.mark_read,
             )
+
+        elif args.command == "delete":
+            cmd_delete(conn, args.uid, args.folder, args.expunge)
+
+        elif args.command in ("reply", "forward"):
+            print(f"Connecting to {SMTP_HOST}:{SMTP_PORT} (SMTP) …", file=sys.stderr)
+            try:
+                smtp = connect_smtp(user, password)
+            except smtplib.SMTPAuthenticationError as e:
+                print(f"SMTP login failed: {e}", file=sys.stderr)
+                sys.exit(1)
+            except OSError as e:
+                print(f"SMTP connection error: {e}", file=sys.stderr)
+                sys.exit(1)
+            try:
+                body_text = sys.stdin.read() if args.body == "-" else args.body
+                if args.command == "reply":
+                    cmd_reply(conn, smtp, user, args.uid, args.folder, body_text, args.reply_all)
+                else:
+                    cmd_forward(conn, smtp, user, args.uid, args.folder, args.to, body_text)
+            finally:
+                smtp.quit()
+
     finally:
         conn.logout()
 

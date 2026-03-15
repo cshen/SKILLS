@@ -95,6 +95,72 @@ python3 mail139.py -u you@139.com fetch --search "invoice" --format json
 MAIL139_ID=you@139.com MAIL139_TOKEN=secret python3 mail139.py fetch
 ```
 
+#### `delete`
+
+Mark an email for deletion.
+
+```bash
+python3 mail139.py -u you@139.com delete --uid <uid> [--folder INBOX] [--expunge]
+```
+
+| Option | Default | Description |
+|---|---|---|
+| `--uid UID` | required | UID of the email to delete |
+| `--folder` | `INBOX` | IMAP folder containing the email |
+| `--expunge` | off | Permanently remove the email immediately; without this flag only the `\Deleted` flag is set |
+
+> [!NOTE]
+> Without `--expunge` the message is only flagged for deletion. Most email clients will hide it and expunge on next sync. Pass `--expunge` to remove it immediately.
+
+#### `reply`
+
+Reply to an email.
+
+```bash
+python3 mail139.py -u you@139.com reply --uid <uid> --body "Your reply text"
+```
+
+| Option | Default | Description |
+|---|---|---|
+| `--uid UID` | required | UID of the email to reply to |
+| `--body TEXT` | required | Reply body. Use `"-"` to read from stdin |
+| `--folder` | `INBOX` | IMAP folder containing the original email |
+| `--reply-all` | off | Reply to all recipients (To + Cc), not just the sender |
+
+```bash
+# Simple reply
+python3 mail139.py -u you@139.com reply --uid 42 --body "Thanks, got it!"
+
+# Reply-all
+python3 mail139.py -u you@139.com reply --uid 42 --body "See attached." --reply-all
+
+# Multi-line body from stdin
+echo -e "Hi,\n\nPlease see my response below." | python3 mail139.py -u you@139.com reply --uid 42 --body -
+```
+
+#### `forward`
+
+Forward an email to another address.
+
+```bash
+python3 mail139.py -u you@139.com forward --uid <uid> --to recipient@example.com
+```
+
+| Option | Default | Description |
+|---|---|---|
+| `--uid UID` | required | UID of the email to forward |
+| `--to EMAIL` | required | Recipient email address |
+| `--folder` | `INBOX` | IMAP folder containing the original email |
+| `--body TEXT` | — | Optional message to prepend before the forwarded content |
+
+```bash
+# Forward with no preamble
+python3 mail139.py -u you@139.com forward --uid 42 --to colleague@example.com
+
+# Forward with a note
+python3 mail139.py -u you@139.com forward --uid 42 --to boss@example.com --body "FYI — see below."
+```
+
 ## Server Settings
 
 | | |

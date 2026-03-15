@@ -2,7 +2,7 @@
 name: mail139
 slug: mail139
 version: 1.0.0
-description: Read and send email via IMAP/SMTP. Check for new/unread messages, fetch content, search mailboxes, mark as read/unread, and send emails with attachments. Works with any IMAP/SMTP server including Gmail, Outlook, 163.com, vip.163.com, etc.
+description: Read, send, delete, reply, and forward email via IMAP/SMTP. Check for new/unread messages, fetch content, search mailboxes, mark as read/unread, and send emails with attachments. Works with any IMAP/SMTP server including Gmail, Outlook, 163.com, vip.163.com, etc.
 metadata: {"clawdbot":{"emoji":"📬","requires":{"bins":["python3"]},"os":["linux","darwin","win32"]}}
 ---
 
@@ -46,8 +46,11 @@ Activate when the user wants to:
 - List mailbox folders on 139.com
 - Export emails as JSON or `.eml` files
 - Save email attachments from 139.com
+- Delete an email from their 139.com account
+- Reply to an email on 139.com
+- Forward an email to another address from 139.com
 
-**Trigger phrases:** "check my 139 email", "read my 139.com inbox", "download emails from 139", "search my 139 mail", "list my 139 folders", "save emails from 139.com", "139邮箱", "中国移动邮箱", "check inbox"
+**Trigger phrases:** "check my 139 email", "read my 139.com inbox", "download emails from 139", "search my 139 mail", "list my 139 folders", "save emails from 139.com", "delete email", "reply to email", "forward email", "139邮箱", "中国移动邮箱", "check inbox"
 
 ## Commands Reference
 
@@ -108,6 +111,76 @@ python3 {baseDir}/mail139.py -u "$MAIL139_ID" -p "$MAIL139_TOKEN" fetch \
   --search "invoice" --format json
 ```
 
+### Delete an Email
+
+```bash
+python3 {baseDir}/mail139.py -u "$MAIL139_ID" -p "$MAIL139_TOKEN" delete --uid <uid> [--folder INBOX] [--expunge]
+```
+
+| Option | Default | Description |
+|---|---|---|
+| `--uid <uid>` | required | UID of the email to delete |
+| `--folder <name>` | `INBOX` | IMAP folder containing the email |
+| `--expunge` | off | Permanently remove immediately; without this, only sets `\Deleted` flag |
+
+> Without `--expunge`, the message is flagged for deletion but not yet removed. Pass `--expunge` only if the user explicitly asks to permanently delete.
+
+```bash
+# Flag for deletion (soft delete)
+python3 {baseDir}/mail139.py -u "$MAIL139_ID" -p "$MAIL139_TOKEN" delete --uid 42
+
+# Permanently delete
+python3 {baseDir}/mail139.py -u "$MAIL139_ID" -p "$MAIL139_TOKEN" delete --uid 42 --expunge
+
+# Delete from a specific folder
+python3 {baseDir}/mail139.py -u "$MAIL139_ID" -p "$MAIL139_TOKEN" delete --uid 17 --folder "Sent Messages" --expunge
+```
+
+### Reply to an Email
+
+```bash
+python3 {baseDir}/mail139.py -u "$MAIL139_ID" -p "$MAIL139_TOKEN" reply --uid <uid> --body "text" [--folder INBOX] [--reply-all]
+```
+
+| Option | Default | Description |
+|---|---|---|
+| `--uid <uid>` | required | UID of the email to reply to |
+| `--body <text>` | required | Reply body. Use `"-"` to read from stdin |
+| `--folder <name>` | `INBOX` | IMAP folder containing the original email |
+| `--reply-all` | off | Reply to all recipients (To + Cc), not just the sender |
+
+```bash
+# Simple reply
+python3 {baseDir}/mail139.py -u "$MAIL139_ID" -p "$MAIL139_TOKEN" reply --uid 42 --body "Thanks, got it!"
+
+# Reply-all
+python3 {baseDir}/mail139.py -u "$MAIL139_ID" -p "$MAIL139_TOKEN" reply --uid 42 --body "See below." --reply-all
+
+# Multi-line body from stdin
+echo -e "Hi,\n\nPlease see my response." | python3 {baseDir}/mail139.py -u "$MAIL139_ID" -p "$MAIL139_TOKEN" reply --uid 42 --body -
+```
+
+### Forward an Email
+
+```bash
+python3 {baseDir}/mail139.py -u "$MAIL139_ID" -p "$MAIL139_TOKEN" forward --uid <uid> --to recipient@example.com [--folder INBOX] [--body "note"]
+```
+
+| Option | Default | Description |
+|---|---|---|
+| `--uid <uid>` | required | UID of the email to forward |
+| `--to <email>` | required | Recipient email address |
+| `--folder <name>` | `INBOX` | IMAP folder containing the original email |
+| `--body <text>` | — | Optional message prepended before the forwarded content |
+
+```bash
+# Forward with no preamble
+python3 {baseDir}/mail139.py -u "$MAIL139_ID" -p "$MAIL139_TOKEN" forward --uid 42 --to colleague@example.com
+
+# Forward with a note
+python3 {baseDir}/mail139.py -u "$MAIL139_ID" -p "$MAIL139_TOKEN" forward --uid 42 --to boss@example.com --body "FYI — see below."
+```
+
 ## Output Format Details
 
 ### `text`
@@ -162,3 +235,7 @@ Without `--mark-read`, the script opens the mailbox read-only and leaves no serv
 8. **After fetching JSON**, parse and summarise the results for the user — don't just dump the raw JSON unless asked.
 9. **If a command fails**, read stderr and explain the issue in plain language (e.g. wrong password, IMAP not enabled, network error).
 10. **For attachment tasks**, `--save-attachments` works without `--output` — attachments will be saved to `~/Downloads/<uid>_attachments/` by default. Only set `--output` if the user wants a specific location.
+11. **For `delete`**, default to soft-delete (flag only, no `--expunge`). Only pass `--expunge` when the user explicitly says "permanently delete" or "remove completely".
+12. **For `reply`**, use `--reply-all` only when the user explicitly asks to reply to everyone. Default to replying only to the sender.
+13. **For `reply` and `forward`**, both IMAP (to fetch the original) and SMTP (to send) connections are established. The same credentials are used for both.
+14. **For multi-line reply bodies**, suggest using stdin (`--body -`) with a heredoc or echo pipe rather than embedding newlines in a shell argument.
