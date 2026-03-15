@@ -272,11 +272,47 @@ def msg_to_dict(uid: str, msg: email.message.Message) -> dict:
 # IMAP connection
 # ---------------------------------------------------------------------------
 
-def connect(user: str, password: str) -> imaplib.IMAP4_SSL:
+def _create_ssl_context(allow_legacy: bool = False) -> ssl.SSLContext:
+    """
+    Build an SSL context. When allow_legacy is True, loosen settings to support
+    older servers (TLS 1.0 + lower cipher security level) used by imap.139.com.
+    """
     ctx = ssl.create_default_context()
-    conn = imaplib.IMAP4_SSL(IMAP_HOST, IMAP_PORT, ssl_context=ctx)
-    conn.login(user, password)
-    return conn
+    if allow_legacy:
+        ctx.minimum_version = ssl.TLSVersion.TLSv1
+        try:
+            ctx.set_ciphers("DEFAULT:@SECLEVEL=1")
+        except ssl.SSLError:
+            # Some OpenSSL builds may not support this syntax; fallback silently.
+            pass
+    return ctx
+
+
+def _is_handshake_failure(err: ssl.SSLError) -> bool:
+    text = str(err).lower()
+    reason = getattr(err, "reason", "")
+    reason_text = reason.lower() if isinstance(reason, str) else ""
+    return "handshake failure" in text or "handshake_failure" in reason_text
+
+
+def connect(user: str, password: str) -> imaplib.IMAP4_SSL:
+    ctx = _create_ssl_context()
+    try:
+        conn = imaplib.IMAP4_SSL(IMAP_HOST, IMAP_PORT, ssl_context=ctx)
+        conn.login(user, password)
+        return conn
+    except ssl.SSLError as e:
+        if not _is_handshake_failure(e):
+            raise
+        print(
+            "TLS handshake failed; retrying with legacy TLS settings (TLS1, SECLEVEL=1) "
+            "for compatibility with imap.139.com.",
+            file=sys.stderr,
+        )
+        legacy_ctx = _create_ssl_context(allow_legacy=True)
+        conn = imaplib.IMAP4_SSL(IMAP_HOST, IMAP_PORT, ssl_context=legacy_ctx)
+        conn.login(user, password)
+        return conn
 
 
 # ---------------------------------------------------------------------------

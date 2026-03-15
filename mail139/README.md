@@ -21,6 +21,9 @@ Need to install Python library html2text `pip3 install html2text` or lynx `brew 
 > [!NOTE]
 > IMAP access may need to be enabled in your 139.com account settings before connecting.
 
+> [!IMPORTANT]
+> Some 139.com endpoints only support older TLS settings. If Python 3.12+ fails with `SSLV3_ALERT_HANDSHAKE_FAILURE`, `mail139` automatically retries with a legacy TLS 1.0 / security-level-1 context to restore compatibility.
+
 ## Usage
 
 ```
