@@ -81,7 +81,12 @@ def priority_val(s):
 
 def resolve_project(name):
     if name == "inbox":
-        return INBOX_ID
+        # Fetch real inbox ID from /project — it varies per account
+        projects = _get("/project")
+        for p in projects:
+            if p.get("id", "").startswith("inbox"):
+                return p["id"]
+        return INBOX_ID  # fallback
     if re.fullmatch(r"[0-9a-f]{24}", name):
         return name
     projects = _get("/project")
