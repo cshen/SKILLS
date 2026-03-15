@@ -296,7 +296,7 @@ def _is_handshake_failure(err: ssl.SSLError) -> bool:
 
 
 def connect(user: str, password: str) -> imaplib.IMAP4_SSL:
-    ctx = _create_ssl_context()
+    ctx = _create_ssl_context(allow_legacy=True)
     try:
         conn = imaplib.IMAP4_SSL(IMAP_HOST, IMAP_PORT, ssl_context=ctx)
         conn.login(user, password)
