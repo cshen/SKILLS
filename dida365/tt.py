@@ -119,7 +119,7 @@ def cmd_tasks(args):
         if t.get("startDate"):
             start = "  — start " + t["startDate"][:10]
         p = PRIORITY_TAG.get(t.get("priority", 0), "     ")
-        print(f"  ○ {p}{start}: {t['title']}\n")
+        print(f"  ○ {p}{start}: {t['title']}\n     id: {t['id']}\n")
 
 
 def cmd_add(args):
