@@ -23,6 +23,9 @@ Need to install Python library html2text `pip3 install html2text` or lynx `brew 
 
 > [!IMPORTANT]
 > Some 139.com endpoints only support older TLS settings. If Python 3.12+ fails with `SSLV3_ALERT_HANDSHAKE_FAILURE`, `mail139` automatically retries with a legacy TLS 1.0 / security-level-1 context to restore compatibility.
+*This is the exact reason why this code exists. I tried a few CLI mail client such as https://github.com/pimalaya/himalaya but they all fail to connect to 139.com due to their strict TLS settings. By using a custom SSL context with legacy settings, `mail139` can successfully connect and fetch emails from 139.com accounts.*
+
+
 
 ## Usage
 
