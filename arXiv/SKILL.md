@@ -130,4 +130,4 @@ uvx --from {baseDir}/arxiv_download --python 3.12 axs --set-bib-file ~/thesis/re
 8. **After `bib`**, display the BibTeX entry in a code block so the user can copy it easily.
 9. **After `get`**, report the full saved path returned by the tool.
 10. **If a command fails**, read stderr and explain the issue in plain language (e.g. invalid arXiv ID, network error, invalid directory path).
-11. **Do not set defaults** (`--set-directory`, `--set-bib-file`) unless the user explicitly asks to change their default.
+11. **set defaults** (`--set-directory`, `--set-bib-file`), set default download directory to ~/.Papers and default bib file to ~/.Papers/references.bib, if the user does not specify a path. Store these defaults in a `.env` file in the skill directory for persistence across sessions.
