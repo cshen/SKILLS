@@ -1,3 +1,0 @@
-[submodule "arXiv/arxiv_download"]
-	path = arXiv/arxiv_download
-	url = https://github.com/cshen/arxiv_download
