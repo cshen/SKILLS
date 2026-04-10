@@ -148,6 +148,10 @@ uvx yt-dlp --cookies-from-browser chrome --write-subs --sub-format srt --convert
 uvx yt-dlp --cookies-from-browser chrome -f "bestvideo+bestaudio/best" --merge-output-format mp4 --write-subs --sub-langs "zh,en" --embed-subs -o "OUTPUT_PATH/%(title)s.%(ext)s" "URL"
 ```
 
+### Download directory 
+
+By default, the downloaded video/audio file is saved into ~/Downloads/  
+
 ### Step 5: Execute download
 
 1. Show the full yt-dlp command to the user before execution
