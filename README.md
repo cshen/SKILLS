@@ -24,6 +24,9 @@ Clone the repo, then inside the Copilot CLI run `/skills add` with a path relati
 /skills add ./dida365
 /skills add ./xiaomi
 /skills add ./arXiv
+/skills add ./fishbone
+/skills add ./mywiki
+/skills add ./youtube_download
 ```
 
 To verify installation: `/skills list`
@@ -72,4 +75,37 @@ Download arXiv papers as PDF, show title/authors/abstract, and generate BibTeX e
 
 ```bash
 npx skills add https://github.com/cshen/SKILLS --skill arXiv
+```
+
+---
+
+### 🦴 fishbone
+Write efficient Fish shell scripts by reusing the `skeleton.fish` library. Provides utilities for I/O, string manipulation, file handling, and script lifecycle management.
+
+**Requires:** `fish` shell
+
+```bash
+npx skills add https://github.com/cshen/SKILLS --skill fishbone
+```
+
+---
+
+### 📚 mywiki
+Build and maintain a personal knowledge wiki. Incrementally organize research, notes, and documentation in a persistent, interconnected Markdown knowledge base with cross-references.
+
+**Requires:** `python3`
+
+```bash
+npx skills add https://github.com/cshen/SKILLS --skill mywiki
+```
+
+---
+
+### 🎥 youtube_download
+Download videos, audio, or subtitles from YouTube, Bilibili, and other sites using yt-dlp. Supports multiple formats and quality options with Chrome cookie authentication.
+
+**Requires:** `uvx`
+
+```bash
+npx skills add https://github.com/cshen/SKILLS --skill youtube_download
 ```
