@@ -13,6 +13,7 @@ npx skills add https://github.com/cshen/SKILLS --skill mail139
 npx skills add https://github.com/cshen/SKILLS --skill dida365
 npx skills add https://github.com/cshen/SKILLS --skill xiaomi
 npx skills add https://github.com/cshen/SKILLS --skill arXiv
+npx skills add ... # and so on for each skill
 ```
 
 ### Option 2 — From a local clone
