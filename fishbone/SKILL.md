@@ -1,11 +1,15 @@
+---
+name: fishbone
+description:  This skill teaches you to write efficient Fish shell scripts by reusing the
+ `skeleton.fish` library from this repository. Read this file before writing
+ any Fish script in a project that contains `skeleton.fish`.
+---
+
+
 # fishbone — Fish Script Writing Skill
 
 > **For AI agents (Copilot, Claude Code, etc.)**  
-> This skill teaches you to write efficient Fish shell scripts by reusing the
-> `skeleton.fish` library from this repository. Read this file before writing
-> any Fish script in a project that contains `skeleton.fish`.
 
----
 
 ## Decision: source the library or inline?
 
